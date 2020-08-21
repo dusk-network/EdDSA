@@ -43,6 +43,12 @@ impl PublicKey {
         PublicKey(point)
     }
 
+    // pub fn from_hash([u8: 32]) -> PublicKey {
+    //     let point = AffinePoint::from(GENERATOR_EXTENDED * self);
+
+    //     PublicKey(point)
+    // } 
+
 
     pub fn new() -> Result<PublicKey, Error> {
         let sk = SecretKey::new();
@@ -52,9 +58,28 @@ impl PublicKey {
 }
 
 // pub struct KeyPair {
-//     secret_key: SecretKey,
+//     sk_hash: [u8; 32],
 //     public_key: PublicKey,
 // }
+
+// impl KeyPair {
+    
+//     pub fn new(SecretKey) -> KeyPair {
+//         let scalar = Fr::random(&mut rand::thread_rng());
+//         if scalar.ct_eq(&Fr::zero()).unwrap_u8() == 1u8 {
+//             return Err(Error::InvalidParameters);
+//         }
+    
+//         let s = sponge_hash(&[scalar.into()]);
+//         let s_h = Fr::from_raw(*s.reduce().internal_repr());
+//         let point = PublicKey::from_hash(s_h);
+
+//         Ok(KeyPair.public_key(point))
+//         Ok(KeyPair.sk_hash(s_h))
+//     }
+// }
+
+
 
 pub struct Signature {
     R_b: [u8; 32],
@@ -87,7 +112,7 @@ impl Signature {
     pub fn verify(&self, m: &Message, pk: &PublicKey) -> bool {
 
         
-        let h = sponge_hash(&[m.0, self.R.get_x(), self.R.get_y(), pk.0.get_y(), pk.0.get_x()]);
+        let h = sponge_hash(&[self.R.get_x(), self.R.get_y(), pk.0.get_y(), pk.0.get_x(), m.0]);
         let h_j = Fr::from_raw(*h.reduce().internal_repr());
         let p1 = GENERATOR_EXTENDED * self.s;
         let h_pk = AffinePoint::from(ExtendedPoint::from(pk.0) * h_j);
@@ -108,8 +133,7 @@ mod integrations {
         let mut rng = rand::thread_rng();
 
         let message = Message(Scalar::random(&mut rng));
-        let valid_sig: Signature;
-        let invalid_sig:  Signature;
+    
 
         let a = Signature::sign(&secret, &message);
         let b = a.verify(&message, &PublicKey::from_secret(&secret));
