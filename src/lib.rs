@@ -2,27 +2,29 @@ mod error;
 
 use dusk_jubjub::{GENERATOR_EXTENDED, GENERATOR, AffinePoint, ExtendedPoint, ExtendedNielsPoint, AffineNielsPoint, Fr};
 use dusk_bls12_381::Scalar;
+use poseidon252::sponge::sponge::sponge_hash;
 use subtle::ConstantTimeEq;
 use crate::error::Error;
-use rand::Rng;
+use rand::{CryptoRng, Rng};
 
-pub struct SecretKey(Scalar);
+pub struct Message(Scalar);
 
-pub struct PrivateKey(Fr);
 
-impl PrivateKey {
+pub struct SecretKey(Fr);
+
+impl SecretKey {
     // This will create a new private key
     // from a scalar of the Field Fr.
-    pub fn new() -> Result<PrivateKey, Error> {
+    pub fn new() -> Result<SecretKey, Error> {
         let scalar = Fr::random(&mut rand::thread_rng());
         if scalar.ct_eq(&Fr::zero()).unwrap_u8() == 1u8 {
             return Err(Error::InvalidParameters);
         }
 
-        Ok(PrivateKey(scalar))
+        Ok(SecretKey(scalar))
     }
 
-    /// `to_public` returns the `PublicKey` of the `PrivateKey`.
+    /// `to_public` returns the `PublicKey` of the `SecretKey`.
     pub fn to_public(&self) -> PublicKey {
         let point = AffinePoint::from(GENERATOR_EXTENDED * &self.0);
         PublicKey(point)
@@ -35,41 +37,83 @@ pub struct PublicKey(AffinePoint);
 impl PublicKey {
     // This will create a new public key from a 
     // secret key
-    pub fn from_secret(secret: &PrivateKey) -> PublicKey {
+    pub fn from_secret(secret: &SecretKey) -> PublicKey {
         let point = AffinePoint::from(GENERATOR_EXTENDED * secret.0);
 
         PublicKey(point)
     }
 
+
     pub fn new() -> Result<PublicKey, Error> {
-        let sk = PrivateKey::new();
-        let pk = PrivateKey::to_public(&sk.unwrap());
+        let sk = SecretKey::new();
+        let pk = SecretKey::to_public(&sk.unwrap());
         Ok(pk)
     }
 }
 
 // pub struct KeyPair {
-//     secret_key: PrivateKey,
+//     secret_key: SecretKey,
 //     public_key: PublicKey,
 // }
 
 pub struct Signature {
+    R_b: [u8; 32],
+    s: Fr,
     R: AffinePoint,
-    s: AffinePoint,
 }
 
 impl Signature {
 
-    pub fn encrypt(pk: &PrivateKey, m: &Scalar) -> Self {
-        let h_pk = sponge_hash(&[pk]);
-        let r = sponge_hash(&[h_pk + m]);
+    pub fn sign(sk: &SecretKey, m: &Message) -> Self {
 
-        let R = r * GENERATOR;
-        let h = sponge_hash(&[R.get_x(), R.get_y(), pk.get_x(), pk.get_y(), m]);
-        let s = r + h * pk;
+        let pk = PublicKey::from_secret(sk);
 
-        Signature{R, s}
+        let h_sk = sponge_hash(&[sk.0.into()]);
+        let r = sponge_hash(&[h_sk + m.0]);
+        let r_j = Fr::from_raw(*r.reduce().internal_repr());
+
+        let R = AffinePoint::from(GENERATOR_EXTENDED * r_j);
+        let R_b = AffinePoint::from(GENERATOR_EXTENDED * r_j).to_bytes();
+
+        let h = sponge_hash(&[R.get_x(), R.get_y(), pk.0.get_x(), pk.0.get_y(), m.0]);
+        let h_j = Fr::from_raw(*h.reduce().internal_repr());
+        let h_pk = h_j * sk.0;
+        let s = h_pk + r_j;
+        
+
+        Signature{R_b, s, R}
     }
 
-    pub fn decrypt(&self, )
+    pub fn verify(&self, m: &Message, pk: &PublicKey) -> bool {
+
+        
+        let h = sponge_hash(&[m.0, self.R.get_x(), self.R.get_y(), pk.0.get_y(), pk.0.get_x()]);
+        let h_j = Fr::from_raw(*h.reduce().internal_repr());
+        let p1 = GENERATOR_EXTENDED * self.s;
+        let h_pk = AffinePoint::from(ExtendedPoint::from(pk.0) * h_j);
+        let p2 = ExtendedPoint::from(self.R) + ExtendedPoint::from(h_pk);
+
+        p1.eq(&p2)
+    }
+}
+
+#[cfg(test)]
+mod integrations {
+    use super::*;
+    use rand::Rng;
+
+    #[test]
+    fn sign_verify() {  // TestSignVerify
+        let secret = SecretKey::new().unwrap();
+        let mut rng = rand::thread_rng();
+
+        let message = Message(Scalar::random(&mut rng));
+        let valid_sig: Signature;
+        let invalid_sig:  Signature;
+
+        let a = Signature::sign(&secret, &message);
+        let b = a.verify(&message, &PublicKey::from_secret(&secret));
+
+        assert!(b);
+    }
 }
