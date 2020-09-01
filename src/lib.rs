@@ -3,8 +3,10 @@ mod error;
 use dusk_jubjub::{GENERATOR_EXTENDED, AffinePoint, ExtendedPoint, Fr};
 use dusk_bls12_381::Scalar;
 use poseidon252::sponge::sponge::sponge_hash;
+use poseidon252::perm_uses::fixed_hash::two_outputs;
 use subtle::ConstantTimeEq;
 use crate::error::Error;
+
 
 pub struct Message(Scalar);
 
@@ -23,10 +25,10 @@ impl SecretKey {
             return Err(Error::InvalidParameters);
         }
 
-        let p1_bls = sponge_hash(&[scalar.into(), Scalar::zero()]);
-        let p2_bls = sponge_hash(&[scalar.into(), Scalar::one()]);
-        let p1 = Fr::from_raw(*p1_bls.reduce().internal_repr());
-        let p2 = Fr::from_raw(*p2_bls.reduce().internal_repr());
+        let sk = two_outputs(scalar.into());
+
+        let p1 = Fr::from_raw(*sk[0].reduce().internal_repr());
+        let p2 = Fr::from_raw(*sk[1].reduce().internal_repr());
 
         Ok(SecretKey{
             p1,
@@ -140,10 +142,12 @@ impl Signature {
     }
 }
 
+
+
 #[cfg(test)]
 mod integrations {
     use super::*;
-
+    
     #[test]
     // TestSignVerify
     fn sign_verify() {  
@@ -170,4 +174,7 @@ mod integrations {
 
         assert!(!b);
     }
+
+
 }
+
