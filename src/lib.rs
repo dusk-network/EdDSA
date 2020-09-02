@@ -1,3 +1,6 @@
+// Copyright (c) DUSK NETWORK. All rights reserved.
+// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.”
+
 mod error;
 
 use dusk_jubjub::{GENERATOR_EXTENDED, AffinePoint, ExtendedPoint, Fr};
@@ -8,7 +11,7 @@ use subtle::ConstantTimeEq;
 use crate::error::Error;
 
 
-pub struct Message(Scalar);
+pub struct Message(pub Scalar);
 
 /// An EdDSA secret key, consisting of two JubJub scalars.
 pub struct SecretKey {
@@ -140,41 +143,42 @@ impl Signature {
 
         p1.eq(&p2)
     }
+
+    pub fn to_bytes(&self) -> [u8; 64] {
+        let mut buf = [0u8; 64];
+        for (i, v) in self.s.to_bytes().iter().enumerate() {
+            buf[i] = *v;
+        }
+
+        for (i, v) in self.R.to_bytes().iter().enumerate() {
+            buf[i+32] = *v;
+        }
+
+        buf
+    }
+
+    #[allow(non_snake_case)]
+    pub fn from_bytes(buf: [u8; 64]) -> Result<Signature, Error> {
+        let mut s_buf = [0u8; 32];
+        for (i, v) in buf[0..32].iter().enumerate() {
+            s_buf[i] = *v;
+        }
+
+        let mut R_buf = [0u8; 32];
+        for (i, v) in buf[32..].iter().enumerate() {
+            R_buf[i] = *v;
+        }
+
+        let s = Fr::from_bytes(&s_buf).unwrap();
+        let R = AffinePoint::from_bytes(R_buf).unwrap();
+
+        let sig = Signature {s, R};
+        Ok(sig)
+    }
+
 }
 
 
 
-#[cfg(test)]
-mod integrations {
-    use super::*;
-    
-    #[test]
-    // TestSignVerify
-    fn sign_verify() {  
-        let keypair = KeyPair::new().unwrap();
-        let mut rng = rand::thread_rng();
 
-        let message = Message(Scalar::random(&mut rng));
-    
-        let a = keypair.sign(&message);
-        let b = a.verify(&message, &keypair.public_key);
-
-        assert!(b);
-    }
-
-    #[test]
-    fn test_wrong_keys() {
-        let keypair = KeyPair::new().unwrap();
-        let mut rng = rand::thread_rng();
-
-        let message = Message(Scalar::random(&mut rng));
-    
-        let a = keypair.sign(&message);
-        let b = a.verify(&message, &PublicKey::new().unwrap());
-
-        assert!(!b);
-    }
-
-
-}
 
