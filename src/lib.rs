@@ -25,7 +25,7 @@ impl SecretKey {
     pub fn new() -> Result<SecretKey, Error> {
         let scalar = Fr::random(&mut rand::thread_rng());
         if scalar.ct_eq(&Fr::zero()).unwrap_u8() == 1u8 {
-            return Err(Error::InvalidParameters);
+            return Err(Error::InvalidSeed);
         }
 
         let sk = two_outputs(scalar.into());
