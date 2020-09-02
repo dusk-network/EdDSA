@@ -169,10 +169,17 @@ impl Signature {
             R_buf[i] = *v;
         }
 
-        let s = Fr::from_bytes(&s_buf).unwrap();
-        let R = AffinePoint::from_bytes(R_buf).unwrap();
+        let s = Fr::from_bytes(&s_buf);
+        if s.is_none().unwrap_u8() == 1 {
+            return Err(Error::Generic);
+        }
 
-        let sig = Signature {s, R};
+        let R = AffinePoint::from_bytes(R_buf);
+        if R.is_none().unwrap_u8() == 1 {
+            return Err(Error::Generic);
+        }  
+
+        let sig = Signature {s: s.unwrap(), R: R.unwrap()};
         Ok(sig)
     }
 
