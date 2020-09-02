@@ -12,7 +12,7 @@ pub enum Error {
 }
 
 impl Error {
-    /// Return a generic error from any type. Represents a cryptographic bottom
+    /// Return a generic error from any type. Represents a cryptographic mistake
     pub fn generic<T>(_e: T) -> Error {
         Error::Generic
     }
