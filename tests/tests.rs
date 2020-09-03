@@ -11,7 +11,7 @@ mod integrations {
     #[test]
     // TestSignVerify
     fn sign_verify() {  
-        let keypair = KeyPair::new().unwrap();
+        let keypair = KeyPair::new(&mut rand::thread_rng()).unwrap();
         let mut rng = rand::thread_rng();
 
         let message = Message(Scalar::random(&mut rng));
@@ -25,13 +25,13 @@ mod integrations {
     #[test]
     // Test to see failure with wrong Public Key
     fn test_wrong_keys() {
-        let keypair = KeyPair::new().unwrap();
+        let keypair = KeyPair::new(&mut rand::thread_rng()).unwrap();
         let mut rng = rand::thread_rng();
 
         let message = Message(Scalar::random(&mut rng));
     
         let a = keypair.sign(&message);
-        let b = a.verify(&message, &PublicKey::new().unwrap());
+        let b = a.verify(&message, &PublicKey::new(&mut rand::thread_rng()).unwrap());
 
         assert!(!b);
     }

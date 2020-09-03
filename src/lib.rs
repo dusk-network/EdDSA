@@ -9,11 +9,13 @@ use poseidon252::sponge::sponge::sponge_hash;
 use poseidon252::perm_uses::fixed_hash::two_outputs;
 use subtle::ConstantTimeEq;
 use crate::error::Error;
+use rand::{Rng, CryptoRng};
 
-
+#[derive(Default, Clone, Copy)]
 pub struct Message(pub Scalar);
 
 /// An EdDSA secret key, consisting of two JubJub scalars.
+#[derive(Clone, Copy, Debug)]
 pub struct SecretKey {
     p1: Fr,
     p2: Fr,
@@ -22,8 +24,11 @@ pub struct SecretKey {
 impl SecretKey {
     /// This will create a new [`SecretKey`] from a scalar 
     /// of the Field Fr.
-    pub fn new() -> Result<SecretKey, Error> {
-        let scalar = Fr::random(&mut rand::thread_rng());
+    pub fn new<T>(rand: &mut T) -> Result<SecretKey, Error>
+    where 
+        T: Rng + CryptoRng, 
+    {
+        let scalar = Fr::random(rand);
         if scalar.ct_eq(&Fr::zero()).unwrap_u8() == 1u8 {
             return Err(Error::InvalidSeed);
         }
@@ -66,6 +71,7 @@ impl SecretKey {
 
 /// An EdDSA public key, internally represented by a point
 /// on the JubJub curve.
+#[derive(Clone, Copy, Debug)]
 pub struct PublicKey(AffinePoint);
 
 impl From<&SecretKey> for PublicKey {
@@ -84,23 +90,32 @@ impl PublicKey {
     /// This creates a new random [`PublicKey`].
     /// Note that this function does not return the [`SecretKey`]
     /// associated to this public key.
-    pub fn new() -> Result<PublicKey, Error> {
-        let sk = SecretKey::new();
-        let pk = SecretKey::to_public(&sk.unwrap());
+    pub fn new<T>(rand: &mut T) -> Result<PublicKey, Error>
+    where 
+        T: Rng + CryptoRng, 
+    {
+        let sk = SecretKey::new(rand)?;
+        let pk = SecretKey::to_public(&sk);
         Ok(pk)
     }
 }
 
 /// A [`KeyPair`] contains both the [`SecretKey`] and the
 /// associated [`PublicKey`].
+#[derive(Clone, Copy, Debug)]
 pub struct KeyPair {
     pub secret_key: SecretKey,
     pub public_key: PublicKey,
 }
 
 impl KeyPair {
-    pub fn new() -> Result<Self, Error> {
-        let sk = SecretKey::new()?;
+    // This function generates a new KeyPair 
+    // from a secret and private key 
+    pub fn new<T>(rand: &mut T) -> Result<Self, Error> 
+    where 
+    T: Rng + CryptoRng, 
+    {
+        let sk = SecretKey::new(rand)?;
         let pk = SecretKey::to_public(&sk);
         
         Ok(KeyPair {
@@ -126,6 +141,7 @@ impl KeyPair {
 /// An EdDSA signature, produced by signing a [`Message`] with a
 /// [`SecretKey`].
 #[allow(non_snake_case)]
+#[derive(Clone, Copy, Debug)]
 pub struct Signature {
     s: Fr,
     R: AffinePoint,
@@ -146,13 +162,8 @@ impl Signature {
 
     pub fn to_bytes(&self) -> [u8; 64] {
         let mut buf = [0u8; 64];
-        for (i, v) in self.s.to_bytes().iter().enumerate() {
-            buf[i] = *v;
-        }
-
-        for (i, v) in self.R.to_bytes().iter().enumerate() {
-            buf[i+32] = *v;
-        }
+        buf[0..32].copy_from_slice(&self.s.to_bytes());
+        buf[32..].copy_from_slice(&self.R.to_bytes());
 
         buf
     }
@@ -160,14 +171,10 @@ impl Signature {
     #[allow(non_snake_case)]
     pub fn from_bytes(buf: [u8; 64]) -> Result<Signature, Error> {
         let mut s_buf = [0u8; 32];
-        for (i, v) in buf[0..32].iter().enumerate() {
-            s_buf[i] = *v;
-        }
+        s_buf.copy_from_slice(&buf[0..32]);
 
         let mut R_buf = [0u8; 32];
-        for (i, v) in buf[32..].iter().enumerate() {
-            R_buf[i] = *v;
-        }
+        R_buf.copy_from_slice(&buf[32..]);
 
         let s = Fr::from_bytes(&s_buf);
         if s.is_none().unwrap_u8() == 1 {
