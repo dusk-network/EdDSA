@@ -1,7 +1,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 // Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.”
 
-use std::io;
+
 use thiserror::Error;
 
 #[derive(Debug)]
