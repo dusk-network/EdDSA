@@ -10,7 +10,8 @@ use poseidon252::perm_uses::fixed_hash::two_outputs;
 use subtle::ConstantTimeEq;
 use crate::error::Error;
 use rand::{Rng, CryptoRng};
-
+use std::io::{Read, Write};
+use std::io;
 
 #[derive(Default, Clone, Copy, Debug)]
 pub struct Message(pub Scalar);
@@ -184,12 +185,12 @@ impl Signature {
 
         let s = Fr::from_bytes(&s_buf);
         if s.is_none().unwrap_u8() == 1 {
-            return Err(Error::Generic);
+            return Err(Error::InvalidData);
         }
 
         let R = AffinePoint::from_bytes(R_buf);
         if R.is_none().unwrap_u8() == 1 {
-            return Err(Error::Generic);
+            return Err(Error::InvalidData);
         }  
 
         let sig = Signature {s: s.unwrap(), R: R.unwrap()};
@@ -198,7 +199,66 @@ impl Signature {
 
 }
 
+impl Read for Signature {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let mut n = 0;
 
+        buf.chunks_mut(32)
+            .next()
+            .ok_or(Error::Generic)
+            .map_err::<io::Error, _>(|e| e.into())?;
+        n += 32;
+        buf.copy_from_slice(&self.s.to_bytes());
 
+        buf.chunks_mut(32)
+            .next()
+            .ok_or(Error::Generic)
+            .map_err::<io::Error, _>(|e| e.into())?;
+        n += 32;
+        buf.copy_from_slice(&self.R.to_bytes());
 
+        Ok(n)
+    }
+}
 
+#[allow(non_snake_case)]
+impl Write for Signature {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let mut n = 0;
+
+        let s_buf = buf
+            .chunks(32)
+            .next()
+            .ok_or(Error::Generic)
+            .map_err::<io::Error, _>(|e| e.into())?;
+        n += 32;
+        let mut s_arr = [0u8; 32];
+        s_arr.copy_from_slice(&s_buf);
+        let s = Fr::from_bytes(&s_arr);
+        if s.is_none().unwrap_u8() == 1 {
+            return Err(Error::Generic.into());
+        }
+
+        let R_buf = buf
+            .chunks(32)
+            .next()
+            .ok_or(Error::Generic)
+            .map_err::<io::Error, _>(|e| e.into())?;
+        n += 32;
+        let mut R_arr = [0u8; 32];
+        R_arr.copy_from_slice(&R_buf);
+        let R = AffinePoint::from_bytes(R_arr);
+        if R.is_none().unwrap_u8() == 1 {
+            return Err(Error::Generic.into());
+        }
+
+        self.s = s.unwrap();
+        self.R = R.unwrap();
+
+        Ok(n)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
