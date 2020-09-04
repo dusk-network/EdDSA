@@ -166,8 +166,8 @@ impl Signature {
 
         
         match p1.eq(&p2) {
-            true => Ok(())
-            false => Err(InvalidSignature)
+            true => Ok(()),
+            false => Err(Error::InvalidSignature),
         }
     }
 
