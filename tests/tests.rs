@@ -19,7 +19,7 @@ mod integrations {
         let a = keypair.sign(&message);
         let b = a.verify(&message, &keypair.public_key);
 
-        assert!(b);
+        assert!(b.is_ok());
     }
 
     #[test]
@@ -33,7 +33,7 @@ mod integrations {
         let a = keypair.sign(&message);
         let b = a.verify(&message, &PublicKey::new(&mut rand::thread_rng()).unwrap());
 
-        assert!(!b);
+        assert!(b.is_err());
     }
 
 
