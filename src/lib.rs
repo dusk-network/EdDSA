@@ -11,6 +11,7 @@ use subtle::ConstantTimeEq;
 use crate::error::Error;
 use rand::{Rng, CryptoRng};
 
+
 #[derive(Default, Clone, Copy)]
 pub struct Message(pub Scalar);
 
@@ -107,6 +108,13 @@ pub struct KeyPair {
     pub secret_key: SecretKey,
     pub public_key: PublicKey,
 }
+
+impl From<SecretKey> for KeyPair {
+    fn from(sk: SecretKey) -> Self {
+        KeyPair::new_from_secret(sk)
+    }
+}
+
 
 impl KeyPair {
     // This function generates a new KeyPair 
