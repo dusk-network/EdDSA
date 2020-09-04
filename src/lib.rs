@@ -12,7 +12,7 @@ use crate::error::Error;
 use rand::{Rng, CryptoRng};
 
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, Debug)]
 pub struct Message(pub Scalar);
 
 /// An EdDSA secret key, consisting of two JubJub scalars.
@@ -30,9 +30,7 @@ impl SecretKey {
         T: Rng + CryptoRng, 
     {
         let scalar = Fr::random(rand);
-        if scalar.ct_eq(&Fr::zero()).unwrap_u8() == 1u8 {
-            return Err(Error::InvalidSeed);
-        }
+        
 
         let sk = two_outputs(scalar.into());
 
@@ -179,7 +177,7 @@ impl Signature {
     #[allow(non_snake_case)]
     pub fn from_bytes(buf: [u8; 64]) -> Result<Signature, Error> {
         let mut s_buf = [0u8; 32];
-        s_buf.copy_from_slice(&buf[0..32]);
+        s_buf.copy_from_slice(&buf[..32]);
 
         let mut R_buf = [0u8; 32];
         R_buf.copy_from_slice(&buf[32..]);
