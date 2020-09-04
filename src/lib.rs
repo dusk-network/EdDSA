@@ -26,7 +26,7 @@ pub struct SecretKey {
 impl SecretKey {
     /// This will create a new [`SecretKey`] from a scalar 
     /// of the Field Fr.
-    pub fn new<T>(rand: &mut T) -> Result<SecretKey, Error>
+    pub fn new<T>(rand: &mut T) -> SecretKey
     where 
         T: Rng + CryptoRng, 
     {
@@ -38,10 +38,10 @@ impl SecretKey {
         let p1 = Fr::from_raw(*sk[0].reduce().internal_repr());
         let p2 = Fr::from_raw(*sk[1].reduce().internal_repr());
 
-        Ok(SecretKey{
+        SecretKey{
             p1,
             p2,
-        })
+        }
     }
 
     /// Returns the [`PublicKey`] of the [`SecretKey`].
@@ -94,7 +94,7 @@ impl PublicKey {
     where 
         T: Rng + CryptoRng, 
     {
-        let sk = SecretKey::new(rand)?;
+        let sk = SecretKey::new(rand);
         let pk = SecretKey::to_public(&sk);
         Ok(pk)
     }
@@ -122,7 +122,7 @@ impl KeyPair {
     where 
     T: Rng + CryptoRng, 
     {
-        let sk = SecretKey::new(rand)?;
+        let sk = SecretKey::new(rand);
         let pk = SecretKey::to_public(&sk);
         
         Ok(KeyPair {
@@ -157,14 +157,18 @@ pub struct Signature {
 impl Signature {
     /// Verify the correctness of a [`Signature`], given a [`Message`]
     /// and a [`PublicKey`].
-    pub fn verify(&self, m: &Message, pk: &PublicKey) -> bool {
+    pub fn verify(&self, m: &Message, pk: &PublicKey) -> Result<(), Error> {
         let h = sponge_hash(&[self.R.get_x(), self.R.get_y(), pk.0.get_y(), pk.0.get_x(), m.0]);
         let h_j = Fr::from_raw(*h.reduce().internal_repr());
         let p1 = GENERATOR_EXTENDED * self.s;
         let h_pk = AffinePoint::from(ExtendedPoint::from(pk.0) * h_j);
         let p2 = ExtendedPoint::from(self.R) + ExtendedPoint::from(h_pk);
 
-        p1.eq(&p2)
+        
+        match p1.eq(&p2) {
+            true => Ok(())
+            false => Err(InvalidSignature)
+        }
     }
 
     pub fn to_bytes(&self) -> [u8; 64] {

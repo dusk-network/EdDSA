@@ -3,14 +3,14 @@
 
 
 use thiserror::Error;
-use std::io;
+use std::io;#
 
 #[derive(Error, Debug)]
 /// Standard error for the interface
 pub enum Error {
     /// Cryptographic invalidity
     #[error(
-        "Digital signature scheme failing"
+        "Generic Error in signature scheme"
     )]
     Generic,
     /// Invalid secret key
@@ -23,6 +23,11 @@ pub enum Error {
         "Invalid data gievn for signature"
     )]
     InvalidData,
+    /// Invalid signature
+    #[error(
+        "Invalid signature for verification"
+    )]
+    InvalidSignature,
     
 }
 
