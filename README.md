@@ -9,14 +9,13 @@ team.
 The EdDSA is a digital signature algorithm,
 which uses Twisted Edwards curves for creating 
 signatures. The original paper was written by 
-Bernstein et Al and can be found [here] (https://ed25519.cr.yp.to/ed25519-20110926.pdf). 
+Bernstein et Al and can be found [here](https://ed25519.cr.yp.to/ed25519-20110926.pdf). 
 
 The implementation has been created using the
 Poseidon hash function, the paper for which can 
-be found [here] (https://eprint.iacr.org/2019/458.pdf). 
+be found [here](https://eprint.iacr.org/2019/458.pdf). 
 
-For a reference to the algorithm, please see the [docs] 
- (https://app.gitbook.com/@dusk-network/s/specs/specifications/phoenix/eddsa).
+For a reference to the algorithm, please see the [docs](https://app.gitbook.com/@dusk-network/s/specs/specifications/phoenix/eddsa).
 
 **This structure of this library is as follows:** 
 
