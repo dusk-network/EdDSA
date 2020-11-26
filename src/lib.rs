@@ -6,15 +6,18 @@
 
 mod error;
 
-use dusk_jubjub::{GENERATOR_EXTENDED, AffinePoint, ExtendedPoint, Fr};
-use dusk_bls12_381::Scalar;
-use poseidon252::sponge::sponge::sponge_hash;
-use poseidon252::perm_uses::fixed_hash::two_outputs;
-use subtle::ConstantTimeEq;
 use crate::error::Error;
-use rand::{Rng, CryptoRng};
-use std::io::{Read, Write};
+use dusk_plonk::bls12_381::BlsScalar as Scalar;
+use dusk_plonk::jubjub::{
+    JubJubAffine as AffinePoint, JubJubExtended as ExtendedPoint, JubJubScalar as Fr,
+    GENERATOR_EXTENDED,
+};
+use poseidon252::perm_uses::fixed_hash::two_outputs;
+use poseidon252::sponge::sponge::sponge_hash;
+use rand::{CryptoRng, Rng};
 use std::io;
+use std::io::{Read, Write};
+use subtle::ConstantTimeEq;
 
 #[derive(Default, Clone, Copy, Debug)]
 pub struct Message(pub Scalar);
@@ -27,24 +30,20 @@ pub struct SecretKey {
 }
 
 impl SecretKey {
-    /// This will create a new [`SecretKey`] from a scalar 
+    /// This will create a new [`SecretKey`] from a scalar
     /// of the Field Fr.
     pub fn new<T>(rand: &mut T) -> SecretKey
-    where 
-        T: Rng + CryptoRng, 
+    where
+        T: Rng + CryptoRng,
     {
         let scalar = Fr::random(rand);
-        
 
         let sk = two_outputs(scalar.into());
 
         let p1 = Fr::from_raw(*sk[0].reduce().internal_repr());
         let p2 = Fr::from_raw(*sk[1].reduce().internal_repr());
 
-        SecretKey{
-            p1,
-            p2,
-        }
+        SecretKey { p1, p2 }
     }
 
     /// Returns the [`PublicKey`] of the [`SecretKey`].
@@ -67,8 +66,8 @@ impl SecretKey {
         let h_j = Fr::from_raw(*h.reduce().internal_repr());
         let h_pk = h_j * self.p1;
         let s = h_pk + r_j;
-        
-        Signature{s, R}
+
+        Signature { s, R }
     }
 }
 
@@ -94,8 +93,8 @@ impl PublicKey {
     /// Note that this function does not return the [`SecretKey`]
     /// associated to this public key.
     pub fn new<T>(rand: &mut T) -> Result<PublicKey, Error>
-    where 
-        T: Rng + CryptoRng, 
+    where
+        T: Rng + CryptoRng,
     {
         let sk = SecretKey::new(rand);
         let pk = SecretKey::to_public(&sk);
@@ -117,17 +116,16 @@ impl From<SecretKey> for KeyPair {
     }
 }
 
-
 impl KeyPair {
-    // This function generates a new KeyPair 
-    // from a secret and private key 
-    pub fn new<T>(rand: &mut T) -> Result<Self, Error> 
-    where 
-    T: Rng + CryptoRng, 
+    // This function generates a new KeyPair
+    // from a secret and private key
+    pub fn new<T>(rand: &mut T) -> Result<Self, Error>
+    where
+        T: Rng + CryptoRng,
     {
         let sk = SecretKey::new(rand);
         let pk = SecretKey::to_public(&sk);
-        
+
         Ok(KeyPair {
             secret_key: sk,
             public_key: pk,
@@ -136,7 +134,7 @@ impl KeyPair {
 
     pub fn new_from_secret(sk: SecretKey) -> Self {
         let pk = SecretKey::to_public(&sk);
-        
+
         KeyPair {
             secret_key: sk,
             public_key: pk,
@@ -161,13 +159,18 @@ impl Signature {
     /// Verify the correctness of a [`Signature`], given a [`Message`]
     /// and a [`PublicKey`].
     pub fn verify(&self, m: &Message, pk: &PublicKey) -> Result<(), Error> {
-        let h = sponge_hash(&[self.R.get_x(), self.R.get_y(), pk.0.get_y(), pk.0.get_x(), m.0]);
+        let h = sponge_hash(&[
+            self.R.get_x(),
+            self.R.get_y(),
+            pk.0.get_y(),
+            pk.0.get_x(),
+            m.0,
+        ]);
         let h_j = Fr::from_raw(*h.reduce().internal_repr());
         let p1 = GENERATOR_EXTENDED * self.s;
         let h_pk = AffinePoint::from(ExtendedPoint::from(pk.0) * h_j);
         let p2 = ExtendedPoint::from(self.R) + ExtendedPoint::from(h_pk);
 
-        
         match p1.eq(&p2) {
             true => Ok(()),
             false => Err(Error::InvalidSignature),
@@ -198,12 +201,14 @@ impl Signature {
         let R = AffinePoint::from_bytes(R_buf);
         if R.is_none().unwrap_u8() == 1 {
             return Err(Error::InvalidData);
-        }  
+        }
 
-        let sig = Signature {s: s.unwrap(), R: R.unwrap()};
+        let sig = Signature {
+            s: s.unwrap(),
+            R: R.unwrap(),
+        };
         Ok(sig)
     }
-
 }
 
 impl Read for Signature {

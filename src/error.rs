@@ -4,34 +4,24 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-
-use thiserror::Error;
 use std::io;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 /// Standard error for the interface
 pub enum Error {
     /// Cryptographic invalidity
-    #[error(
-        "Generic Error in signature scheme"
-    )]
+    #[error("Generic Error in signature scheme")]
     Generic,
     /// Invalid secret key
-    #[error(
-        "Invalid seed provided to generate Secret key"
-    )]
+    #[error("Invalid seed provided to generate Secret key")]
     InvalidSeed,
-    /// Invalid data as an output 
-    #[error(
-        "Invalid data gievn for signature"
-    )]
+    /// Invalid data as an output
+    #[error("Invalid data gievn for signature")]
     InvalidData,
     /// Invalid signature
-    #[error(
-        "Invalid signature for verification"
-    )]
+    #[error("Invalid signature for verification")]
     InvalidSignature,
-    
 }
 
 impl Error {
