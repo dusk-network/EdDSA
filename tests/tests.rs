@@ -1,21 +1,24 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 // Copyright (c) DUSK NETWORK. All rights reserved.
-// Licensed under the MPL 2.0 license. See LICENSE file in the project root for details.”
 
-use eddsa::{Message, KeyPair, PublicKey};
-use dusk_bls12_381::Scalar;
+use dusk_plonk::bls12_381::BlsScalar as Scalar;
+use eddsa::{KeyPair, Message, PublicKey};
 
 #[cfg(test)]
 mod integrations {
     use super::*;
-    
+
     #[test]
     // TestSignVerify
-    fn sign_verify() {  
+    fn sign_verify() {
         let keypair = KeyPair::new(&mut rand::thread_rng()).unwrap();
         let mut rng = rand::thread_rng();
 
         let message = Message(Scalar::random(&mut rng));
-    
+
         let a = keypair.sign(&message);
         let b = a.verify(&message, &keypair.public_key);
 
@@ -29,12 +32,10 @@ mod integrations {
         let mut rng = rand::thread_rng();
 
         let message = Message(Scalar::random(&mut rng));
-    
+
         let a = keypair.sign(&message);
         let b = a.verify(&message, &PublicKey::new(&mut rand::thread_rng()).unwrap());
 
         assert!(b.is_err());
     }
-
-
 }
