@@ -21,21 +21,43 @@ jobs:
         with:
           command: dusk-analyzer
 
-  test_nightly_std:
-    name: Nightly tests std
+  test_nightly:
+    name: Nightly tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: Cache .rusk profile
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-rusk-profile
+        with:
+          path: ~/.rusk
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+      - name: Cache deps
+        uses: actions/cache@v2
+        with:
+          path: |-
+            .cargo_home
+            target/*/.*
+            target/*/build
+            target/*/deps
+          key: ${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: nightly-2020-10-25
           override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release
-      
+      - run: rustup component add rustfmt
+      - run: rustup target add wasm32-unknown-unknown
+      - run: make test
+
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
