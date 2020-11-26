@@ -17,7 +17,6 @@ use poseidon252::sponge::sponge::sponge_hash;
 use rand::{CryptoRng, Rng};
 use std::io;
 use std::io::{Read, Write};
-use subtle::ConstantTimeEq;
 
 #[derive(Default, Clone, Copy, Debug)]
 pub struct Message(pub Scalar);
@@ -162,8 +161,8 @@ impl Signature {
         let h = sponge_hash(&[
             self.R.get_x(),
             self.R.get_y(),
-            pk.0.get_y(),
             pk.0.get_x(),
+            pk.0.get_y(),
             m.0,
         ]);
         let h_j = Fr::from_raw(*h.reduce().internal_repr());
