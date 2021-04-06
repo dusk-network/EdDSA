@@ -12,8 +12,9 @@ use dusk_plonk::jubjub::{
     JubJubAffine as AffinePoint, JubJubExtended as ExtendedPoint, JubJubScalar as Fr,
     GENERATOR_EXTENDED,
 };
-use poseidon252::perm_uses::fixed_hash::two_outputs;
-use poseidon252::sponge::sponge::sponge_hash;
+use dusk_bytes::Serializable;
+use dusk_poseidon::perm_uses::two_outputs;
+use dusk_poseidon::sponge::hash;
 use rand::{CryptoRng, Rng};
 use std::io;
 use std::io::{Read, Write};
@@ -56,12 +57,12 @@ impl SecretKey {
     pub fn sign(&self, m: &Message) -> Signature {
         let pk = PublicKey::from_secret(self);
 
-        let r = sponge_hash(&[self.p2.into(), m.0]);
+        let r = hash(&[self.p2.into(), m.0]);
         let r_j = Fr::from_raw(*r.reduce().internal_repr());
 
         let R = AffinePoint::from(GENERATOR_EXTENDED * r_j);
 
-        let h = sponge_hash(&[R.get_x(), R.get_y(), pk.0.get_x(), pk.0.get_y(), m.0]);
+        let h = hash(&[R.get_x(), R.get_y(), pk.0.get_x(), pk.0.get_y(), m.0]);
         let h_j = Fr::from_raw(*h.reduce().internal_repr());
         let h_pk = h_j * self.p1;
         let s = h_pk + r_j;
@@ -158,7 +159,7 @@ impl Signature {
     /// Verify the correctness of a [`Signature`], given a [`Message`]
     /// and a [`PublicKey`].
     pub fn verify(&self, m: &Message, pk: &PublicKey) -> Result<(), Error> {
-        let h = sponge_hash(&[
+        let h = hash(&[
             self.R.get_x(),
             self.R.get_y(),
             pk.0.get_x(),
@@ -192,19 +193,14 @@ impl Signature {
         let mut R_buf = [0u8; 32];
         R_buf.copy_from_slice(&buf[32..]);
 
-        let s = Fr::from_bytes(&s_buf);
-        if s.is_none().unwrap_u8() == 1 {
-            return Err(Error::InvalidData);
-        }
+        let s = Fr::from_bytes(&s_buf).map_err(|_| Error::InvalidData)?;
 
-        let R = AffinePoint::from_bytes(R_buf);
-        if R.is_none().unwrap_u8() == 1 {
-            return Err(Error::InvalidData);
-        }
+        let R = AffinePoint::from_bytes(&R_buf).map_err(|_| Error::InvalidData)?;
+
 
         let sig = Signature {
-            s: s.unwrap(),
-            R: R.unwrap(),
+            s,
+            R,
         };
         Ok(sig)
     }
@@ -245,10 +241,8 @@ impl Write for Signature {
         n += 32;
         let mut s_arr = [0u8; 32];
         s_arr.copy_from_slice(&s_buf);
-        let s = Fr::from_bytes(&s_arr);
-        if s.is_none().unwrap_u8() == 1 {
-            return Err(Error::Generic.into());
-        }
+        let s = Fr::from_bytes(&s_arr).map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid Scalar provided"))?;
+
 
         let R_buf = buf
             .chunks(32)
@@ -258,13 +252,11 @@ impl Write for Signature {
         n += 32;
         let mut R_arr = [0u8; 32];
         R_arr.copy_from_slice(&R_buf);
-        let R = AffinePoint::from_bytes(R_arr);
-        if R.is_none().unwrap_u8() == 1 {
-            return Err(Error::Generic.into());
-        }
+        let R = AffinePoint::from_bytes(&R_arr).map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid Affine Point provided"))?;
 
-        self.s = s.unwrap();
-        self.R = R.unwrap();
+
+        self.s = s;
+        self.R = R;
 
         Ok(n)
     }
